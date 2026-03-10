@@ -1,0 +1,71 @@
+# Default values for cloudshop.
+# Override with: helm install cloudshop ./helm/cloudshop --set key=value
+
+replicaCount:
+  api: 2
+  frontend: 2
+  worker: 1
+
+image:
+  registry: ""   # Set to your ECR URL: <ACCOUNT>.dkr.ecr.us-east-1.amazonaws.com
+  pullPolicy: Always
+  api:
+    repository: cloudshop-api
+    tag: latest
+  frontend:
+    repository: cloudshop-frontend
+    tag: latest
+  worker:
+    repository: cloudshop-worker
+    tag: latest
+
+service:
+  api:
+    port: 80
+    targetPort: 3000
+  frontend:
+    type: ClusterIP
+    port: 80
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+
+resources:
+  api:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "500m"
+  frontend:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "200m"
+  worker:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "250m"
+
+config:
+  nodeEnv: production
+  logLevel: info
+
+redis:
+  image: redis:7-alpine
+  port: 6379

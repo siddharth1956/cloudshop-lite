@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudshop-worker
+  labels:
+    app: cloudshop-worker
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  replicas: {{ .Values.replicaCount.worker }}
+  selector:
+    matchLabels:
+      app: cloudshop-worker
+  template:
+    metadata:
+      labels:
+        app: cloudshop-worker
+    spec:
+      containers:
+      - name: worker
+        image: "{{ .Values.image.registry }}/{{ .Values.image.worker.repository }}:{{ .Values.image.worker.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: REDIS_URL
+          value: "redis://redis:{{ .Values.redis.port }}"
+        resources:
+          {{- toYaml .Values.resources.worker | nindent 10 }}

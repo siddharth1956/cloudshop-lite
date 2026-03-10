@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CloudShop Lite</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, sans-serif; background: #f0f4f8; color: #1a202c; }
+    header { background: #1E3A5F; color: white; padding: 20px 40px; display: flex; align-items: center; gap: 16px; }
+    header h1 { font-size: 24px; }
+    header span { background: #00897B; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+    .container { max-width: 1100px; margin: 40px auto; padding: 0 20px; }
+    .status-bar { background: white; border-radius: 10px; padding: 20px; margin-bottom: 30px;
+                  display: flex; gap: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .status-item { flex: 1; text-align: center; }
+    .status-item .label { font-size: 12px; color: #718096; margin-bottom: 4px; }
+    .status-item .value { font-size: 22px; font-weight: 700; color: #1E3A5F; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+    .card { background: white; border-radius: 10px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .card h3 { font-size: 18px; margin-bottom: 8px; }
+    .card .price { font-size: 24px; font-weight: 700; color: #00897B; margin-bottom: 16px; }
+    .card .stock { font-size: 12px; color: #718096; margin-bottom: 16px; }
+    .btn { background: #1E3A5F; color: white; border: none; padding: 10px 20px;
+           border-radius: 6px; cursor: pointer; width: 100%; font-size: 14px; }
+    .btn:hover { background: #2a4f7c; }
+    .loading { text-align: center; padding: 40px; color: #718096; }
+    .error { background: #FFF5F5; border: 1px solid #FC8181; border-radius: 8px;
+             padding: 16px; margin-bottom: 20px; color: #C53030; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>☁️ CloudShop Lite</h1>
+    <span>Running on Kubernetes</span>
+  </header>
+  <div class="container">
+    <div id="error-box" style="display:none" class="error"></div>
+    <div class="status-bar">
+      <div class="status-item"><div class="label">API Status</div><div class="value" id="api-status">⏳</div></div>
+      <div class="status-item"><div class="label">Products</div><div class="value" id="product-count">-</div></div>
+      <div class="status-item"><div class="label">Orders</div><div class="value" id="order-count">-</div></div>
+      <div class="status-item"><div class="label">Environment</div><div class="value" id="env-info">-</div></div>
+    </div>
+    <div id="products" class="grid"><div class="loading">Loading products...</div></div>
+  </div>
+  <script>
+    const API = window.location.hostname === 'localhost'
+      ? 'http://localhost:3000'
+      : '/api';
+
+    async function init() {
+      try {
+        const health = await fetch(`${API}/health`).then(r => r.json());
+        document.getElementById('api-status').textContent = '✅ OK';
+        document.getElementById('env-info').textContent = health.service || 'api';
+      } catch (e) {
+        document.getElementById('api-status').textContent = '❌ Down';
+        document.getElementById('error-box').style.display = 'block';
+        document.getElementById('error-box').textContent = 'Cannot reach API — check your deployment.';
+      }
+      try {
+        const { products, count } = await fetch(`${API}/api/products`).then(r => r.json());
+        document.getElementById('product-count').textContent = count;
+        document.getElementById('products').innerHTML = products.map(p => `
+          <div class="card">
+            <h3>${p.name}</h3>
+            <div class="price">$${p.price}</div>
+            <div class="stock">📦 ${p.stock} in stock</div>
+            <button class="btn" onclick="order(${p.id}, '${p.name}', ${p.price})">Add to Cart</button>
+          </div>`).join('');
+        const { count: oc } = await fetch(`${API}/api/orders`).then(r => r.json());
+        document.getElementById('order-count').textContent = oc;
+      } catch (e) {
+        document.getElementById('products').innerHTML = '<div class="loading">Could not load products.</div>';
+      }
+    }
+
+    async function order(id, name, price) {
+      try {
+        await fetch(`${API}/api/orders`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId: id, productName: name, price })
+        });
+        alert(`Order placed for ${name}!`);
+        init();
+      } catch (e) { alert('Order failed — check API.'); }
+    }
+    init();
+  </script>
+</body>
+</html>

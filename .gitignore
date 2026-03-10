@@ -1,0 +1,29 @@
+# Secrets — NEVER commit
+.env
+.env.*
+k8s-manifests/secrets.yaml
+**/secrets.yaml
+kubeconfig
+
+# AWS credentials
+.aws/credentials
+*.pem
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+frontend/build/
+dist/
+*.log

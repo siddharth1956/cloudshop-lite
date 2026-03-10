@@ -1,0 +1,10 @@
+{
+  "name": "cloudshop-frontend",
+  "version": "1.0.0",
+  "description": "CloudShop Lite Frontend",
+  "scripts": {
+    "build": "cp -r src/. build/ && echo 'Build complete'",
+    "start": "npx serve -s build -l 3001"
+  },
+  "dependencies": {}
+}

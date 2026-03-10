@@ -1,0 +1,136 @@
+# ╔═══════════════════════════════════════════════════════════════════╗
+# ║  CloudShop Lite — GitHub Actions CI/CD Pipeline                  ║
+# ║  Trigger: push to main                                           ║
+# ║  Jobs: build → push to ECR → deploy to EKS via Helm             ║
+# ╚═══════════════════════════════════════════════════════════════════╝
+name: Build and Deploy CloudShop
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER: cloudshop
+  NAMESPACE: cloudshop
+
+jobs:
+  # ── JOB 1: Build & Push all images to ECR ─────────────────────────
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region:            ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build & push API image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./api
+        push: true
+        tags: |
+          ${{ steps.login-ecr.outputs.registry }}/cloudshop-api:${{ github.sha }}
+          ${{ steps.login-ecr.outputs.registry }}/cloudshop-api:latest
+        cache-from: type=gha
+        cache-to:   type=gha,mode=max
+
+    - name: Build & push Frontend image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend
+        push: true
+        tags: |
+          ${{ steps.login-ecr.outputs.registry }}/cloudshop-frontend:${{ github.sha }}
+          ${{ steps.login-ecr.outputs.registry }}/cloudshop-frontend:latest
+        cache-from: type=gha
+        cache-to:   type=gha,mode=max
+
+    - name: Build & push Worker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./worker
+        push: true
+        tags: |
+          ${{ steps.login-ecr.outputs.registry }}/cloudshop-worker:${{ github.sha }}
+          ${{ steps.login-ecr.outputs.registry }}/cloudshop-worker:latest
+        cache-from: type=gha
+        cache-to:   type=gha,mode=max
+
+    - name: Save registry URL for deploy job
+      run: echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
+
+  # ── JOB 2: Deploy to EKS via Helm (main branch only) ──────────────
+  deploy:
+    name: Deploy to EKS
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region:            ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Update kubeconfig for EKS
+      run: |
+        aws eks update-kubeconfig \
+          --name ${{ env.EKS_CLUSTER }} \
+          --region ${{ env.AWS_REGION }}
+
+    - name: Install Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: "3.13.0"
+
+    - name: Deploy with Helm
+      run: |
+        helm upgrade --install cloudshop ./helm/cloudshop \
+          --namespace ${{ env.NAMESPACE }} \
+          --create-namespace \
+          --set image.registry=${{ steps.login-ecr.outputs.registry }} \
+          --set image.api.tag=${{ github.sha }} \
+          --set image.frontend.tag=${{ github.sha }} \
+          --set image.worker.tag=${{ github.sha }} \
+          --wait \
+          --timeout 5m \
+          --atomic
+
+    - name: Verify deployment
+      run: |
+        kubectl get pods -n ${{ env.NAMESPACE }}
+        kubectl get svc  -n ${{ env.NAMESPACE }}
+        kubectl get hpa  -n ${{ env.NAMESPACE }}
+
+    - name: Get public URL
+      run: |
+        echo "Public URL:"
+        kubectl get ingress cloudshop-ingress -n ${{ env.NAMESPACE }} \
+          -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+        echo ""

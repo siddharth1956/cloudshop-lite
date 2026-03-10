@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudshop-api
+  namespace: default
+  labels:
+    app: cloudshop-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloudshop-api
+  template:
+    metadata:
+      labels:
+        app: cloudshop-api
+    spec:
+      containers:
+      - name: api
+        image: cloudshop-api:latest   # <-- UPDATE to ECR URL after pushing
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+        env:
+        - name: REDIS_URL
+          value: "redis://redis:6379"
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: cloudshop-config
+              key: NODE_ENV
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudshop-api
+  namespace: default
+spec:
+  selector:
+    app: cloudshop-api
+  ports:
+  - port: 80
+    targetPort: 3000

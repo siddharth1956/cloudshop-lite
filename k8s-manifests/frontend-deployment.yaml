@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudshop-frontend
+  namespace: default
+  labels:
+    app: cloudshop-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloudshop-frontend
+  template:
+    metadata:
+      labels:
+        app: cloudshop-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: cloudshop-frontend:latest   # <-- UPDATE to ECR URL after pushing
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudshop-frontend
+  namespace: default
+spec:
+  type: ClusterIP
+  selector:
+    app: cloudshop-frontend
+  ports:
+  - port: 80
+    targetPort: 80

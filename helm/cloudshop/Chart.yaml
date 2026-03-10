@@ -1,0 +1,10 @@
+apiVersion: v2
+name: cloudshop
+description: CloudShop Lite — multi-service Kubernetes application
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - cloudshop
+  - kubernetes
+  - ecommerce
