@@ -7,7 +7,7 @@ replicaCount:
   worker: 1
 
 image:
-  registry: ""   # Set to your ECR URL: <ACCOUNT>.dkr.ecr.us-east-1.amazonaws.com
+  registry: "563955855749.dkr.ecr.ap-south-1.amazonaws.com"   # Set to your ECR URL: <ACCOUNT>.dkr.ecr.us-east-1.amazonaws.com
   pullPolicy: Always
   api:
     repository: cloudshop-api
