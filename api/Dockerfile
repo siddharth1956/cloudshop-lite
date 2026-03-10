@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Dependencies layer (cached separately)
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm install --omit=dev
 
 # Source
 COPY . .

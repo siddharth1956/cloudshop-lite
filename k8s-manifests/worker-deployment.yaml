@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: worker
-        image: cloudshop-worker:latest   # <-- UPDATE to ECR URL after pushing
+        image: 563955855749.dkr.ecr.ap-south-1.amazonaws.com/cloudshop-worker:latest   # <-- UPDATE to ECR URL after pushing
         imagePullPolicy: Always
         env:
         - name: REDIS_URL
